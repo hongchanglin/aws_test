@@ -44,18 +44,63 @@ def create_product():
 
     return jsonify({"product_name": product_name, "stock_amount": stock_amount}), 201
 
-@app.route('/v1/products', methods=['GET'])
-def get_products():
+@app.route('/v1/stocks', methods=['GET'])
+@app.route('/v1/stocks/<name>', methods=['GET'])
+def get_stocks(name=None):
     conn = get_db_connection()
-    products = conn.execute('SELECT * FROM products'). fetchall
+
+    if name:
+        product = conn.execute('SELECT * FROM products WHERE product_name = ?', (name,)).fetchone()
+        conn.close()
+
+        if product:
+            return jsonify({name: product['stock_amount']})
+        else:
+            return jsonify({name: 0})
+
+    else:
+        products = conn.execute('SELECT * FROM products WHERE stock_amount > 0 ORDER BY product_name ASC').fetchall()
+        conn.close()
+
+        result = {product['product_name']: product['stock_amount'] for product in products}
+        return jsonify(result)
+
+@app.route('/v1/sales', methods=['POST'])
+def sale_execute():
+    data = request.json
+    product_name = data.get('name')
+    amount = data.get('amount', 1)
+    price = data.get('price')
+
+    if not product_name or not isinstance(amount, int) or amount <= 0:
+        return jsonify({"message": "ERROR"}), 400
+    
+    conn = get_db_connection()
+    product = conn.execute('SELECT * FROM products WHERE product_name = ?', (product_name,)).fetchone()
+    
+    if not product:
+        conn.close()
+        return jsonify({"message": f"Product '{product_name}' not found"}), 404
+    
+    if product['stock_amount'] < amount:
+        conn.close()
+        return jsonify({"message": "Not enough stock"}), 400
+    
+    new_stock_amount = product['stock_amount'] - amount
+    conn.execute('UPDATE products SET stock_amount = ? WHERE product_name = ?', (new_stock_amount, product_name))
+
+    total_price = 0
+    if price and isinstance(price, (int, float)) and price > 0:
+        total_price = price * amount
+        conn.execute('INSERT INTO sales (product_name, amount_sold, total_price) VALUES (?, ?, ?)', (product_name, amount, total_price))
+
+    conn.commit()
     conn.close()
 
-    products_list = []
-    for product in products:
-        products_list.append({"id": product["id"], "product_name": product["product_name"], "stock_amount": product["stock_amount"]})
+    response = jsonify({"name": product_name, "amount": amount})
+    response.headers['Location'] = url_for('get_sales', name=product_name, _external=True)
 
-    return jsonify(products_list)
-
+    return response, 200
 
 @app.route('/v1/products/<int:id>', methods=['PUT'])
 def update_product(id):

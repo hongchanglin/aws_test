@@ -1,0 +1,10 @@
+
+
+<Directory "/var/www/html/secret">
+    AuthType Digest
+    AuthName "AWS Secret"
+    AuthDigestProvider file
+    AuthUserFile /etc/httpd/passwords/digest_passwords
+    Require valid-user
+    ErrorDocument 401 /wrong_password_401.html
+</Directory>

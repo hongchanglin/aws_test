@@ -35,6 +35,8 @@ def init_db():
 # 初期化は一回のみ
 init_db()
 
+# ルーティングとは、URLとFlaskの処理を対応づけることで、URLと関数を紐付けることが出来ます。
+# Flaskでルーティングを記述するには、route()を用います。
 # (1)在庫作成
 @app.route('/v1/stocks', methods=['POST'])
 def create_product():
@@ -60,6 +62,10 @@ def create_product():
     conn.close()
 
     return jsonify({"name": product_name, "amount": stock_amount}), 201
+
+# @app.routeの関数内の<・・・>の部分に任意の名前(ここでは)を記述することで、
+# その名称を次の関数(ここではhello関数)にてroute内の<・・・>で記述した値を引数として利用することが可能になります。
+# 今回は’/hello/’としましたが、<・・・>の・・・の部分は自由な名称をつけることが可能です。
 
 # (2)在庫問合せ
 @app.route('/v1/stocks', methods=['GET'])
